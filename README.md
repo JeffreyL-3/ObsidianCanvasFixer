@@ -30,13 +30,6 @@ clipboard behavior. Body-targeted copy events only use a selection from the
 active Canvas, and inputs, text areas, and other editable controls inside a
 Canvas retain their native copy behavior.
 
-There is also a fallback command:
-
-`Canvas Read-Only Copy: Copy selected text from read-only canvas`
-
-You can assign it a hotkey in **Settings -> Hotkeys**. The fallback command
-copies the Markdown/plain-text form.
-
 ## Compatibility and limitations
 
 - The plugin deliberately does nothing in Canvas edit mode.

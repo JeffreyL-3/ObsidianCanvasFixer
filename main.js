@@ -1,22 +1,10 @@
-const { Notice, Plugin, htmlToMarkdown } = require("obsidian");
+const { Plugin, htmlToMarkdown } = require("obsidian");
 
 const CANVAS_VIEW_TYPE = "canvas";
 
 module.exports = class CanvasReadonlyCopyPlugin extends Plugin {
   onload() {
     this.attachedDocuments = new Map();
-
-    this.addCommand({
-      id: "copy-readonly-canvas-selection",
-      name: "Copy selected text from read-only canvas",
-      checkCallback: (checking) => {
-        const canvasView = this.getActiveReadonlyCanvasView();
-        if (!canvasView) return false;
-
-        if (!checking) void this.copyWithCommand(canvasView);
-        return true;
-      },
-    });
 
     const attach = () => this.attachToCanvasDocuments();
     this.registerEvent(this.app.workspace.on("layout-change", attach));
@@ -171,26 +159,6 @@ module.exports = class CanvasReadonlyCopyPlugin extends Plugin {
 
   isReadonlyCanvasView(view) {
     return view?.getViewType?.() === CANVAS_VIEW_TYPE && view.canvas?.readonly === true;
-  }
-
-  async copyWithCommand(canvasView) {
-    const doc = canvasView.containerEl.ownerDocument;
-    const selection = this.findReadonlyCanvasSelection(doc, canvasView);
-    if (!selection) {
-      new Notice("No text is selected in the active read-only canvas.");
-      return;
-    }
-
-    try {
-      const clipboard = doc.defaultView?.navigator?.clipboard;
-      if (!clipboard) throw new Error("Clipboard API is unavailable");
-
-      await clipboard.writeText(selection.markdown);
-      new Notice("Canvas selection copied.");
-    } catch (error) {
-      console.error("[Canvas Read-Only Copy] Clipboard write failed", error);
-      new Notice("Clipboard write failed. Check the developer console for details.");
-    }
   }
 
   escapeHtml(text) {

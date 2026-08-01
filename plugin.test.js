@@ -15,13 +15,10 @@ class Plugin {
   registerEvent() {}
 }
 
-class Notice {}
-
 const originalLoad = Module._load;
 Module._load = function (request, parent, isMain) {
   if (request === "obsidian") {
     return {
-      Notice,
       Plugin,
       htmlToMarkdown: (html) => html.replace("<strong>", "**").replace("</strong>", "**"),
     };
@@ -60,7 +57,6 @@ const doc = {
   body,
   defaultView: {
     getSelection: () => selection,
-    navigator: { clipboard: { writeText: async () => {} } },
   },
   createElement: () => ({
     innerHTML: "",
@@ -97,7 +93,7 @@ const plugin = new CanvasReadonlyCopyPlugin({ workspace });
 plugin.onload();
 
 assert.equal(listeners.get("copy").capture, true, "copy listener must use capture phase");
-assert.equal(plugin.commands[0].checkCallback(true), true, "command must be available in read-only Canvas");
+assert.equal(plugin.commands.length, 0, "the plugin must not register custom copy commands");
 
 const clipboard = new Map();
 let prevented = false;
@@ -228,7 +224,6 @@ plugin.handleCopyEvent(doc, {
 
 assert.equal(clipboard.size, 0, "edit mode must not be intercepted");
 assert.equal(prevented, false, "edit mode must retain native copy behavior");
-assert.equal(plugin.commands[0].checkCallback(true), false, "command must be hidden in edit mode");
 
 leaves.length = 0;
 plugin.attachToCanvasDocuments();
