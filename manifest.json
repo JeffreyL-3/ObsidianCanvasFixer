@@ -3,7 +3,7 @@
   "name": "Canvas Read-Only Copy",
   "version": "1.0.1",
   "minAppVersion": "1.1.9",
-  "description": "Copies selected text from read-only Obsidian Canvas cards.",
+  "description": "Copies selected text from read-only Canvas cards.",
   "author": "JL",
   "isDesktopOnly": false
 }
