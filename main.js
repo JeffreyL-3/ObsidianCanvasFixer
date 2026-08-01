@@ -55,7 +55,7 @@ module.exports = class CanvasReadonlyCopyPlugin extends Plugin {
   }
 
   handleCopyEvent(doc, event) {
-    if (!event.clipboardData) return;
+    if (!event.clipboardData || event.defaultPrevented) return;
 
     const selection = this.findReadonlyCanvasSelection(doc, null, event);
     if (!selection) return;
@@ -87,28 +87,61 @@ module.exports = class CanvasReadonlyCopyPlugin extends Plugin {
       if (view.containerEl.ownerDocument !== doc) return false;
       const canvasRoot = view.canvas?.canvasEl ?? view.containerEl;
       if (!canvasRoot.contains(ancestor)) return false;
-      return !copyEvent || this.eventOriginatesWithinCanvas(copyEvent, canvasRoot, doc);
+      return (
+        !copyEvent ||
+        this.eventOriginatesWithinCanvas(copyEvent, view, canvasRoot, doc)
+      );
     });
 
     if (!canvasView) return null;
     return this.serializeSelection(doc, selection, range);
   }
 
-  eventOriginatesWithinCanvas(event, canvasRoot, doc) {
+  eventOriginatesWithinCanvas(event, canvasView, canvasRoot, doc) {
     const path = typeof event.composedPath === "function" ? event.composedPath() : [];
-    if (path.includes(canvasRoot)) return true;
-
     const target = path[0] ?? event.target;
     if (!target) return false;
 
-    // Non-editable selections may dispatch copy at the document body instead.
-    return (
+    // Editable controls should copy natively; form controls can maintain their
+    // own selection without replacing document.getSelection().
+    if (this.pathContainsEditableControl(path, target, canvasRoot)) return false;
+
+    if (path.includes(canvasRoot)) return true;
+    if (
       target === canvasRoot ||
-      canvasRoot.contains(target) ||
-      target === doc ||
-      target === doc.body ||
-      target === doc.documentElement
+      (typeof target.nodeType === "number" && canvasRoot.contains(target))
+    ) {
+      return true;
+    }
+
+    // Non-editable selections may dispatch copy at the document body. Since that
+    // target carries no origin information, only trust it for the active Canvas.
+    const activeCanvasView = this.getActiveReadonlyCanvasView();
+    return (
+      activeCanvasView === canvasView &&
+      activeCanvasView.containerEl.ownerDocument === doc &&
+      (target === doc || target === doc.body || target === doc.documentElement)
     );
+  }
+
+  pathContainsEditableControl(path, target, canvasRoot) {
+    const nodes = path.length ? path : [target];
+
+    for (const node of nodes) {
+      if (node === canvasRoot) break;
+
+      const tagName =
+        typeof node?.tagName === "string" ? node.tagName.toUpperCase() : "";
+      if (
+        tagName === "INPUT" ||
+        tagName === "TEXTAREA" ||
+        node?.isContentEditable === true
+      ) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   serializeSelection(doc, selection, range) {

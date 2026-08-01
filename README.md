@@ -26,7 +26,9 @@ The plugin puts Markdown in the plain-text clipboard format and the selected
 rendered content in the HTML clipboard format.
 
 Copy actions outside the selected read-only Canvas retain Obsidian's normal
-clipboard behavior.
+clipboard behavior. Body-targeted copy events only use a selection from the
+active Canvas, and inputs, text areas, and other editable controls inside a
+Canvas retain their native copy behavior.
 
 There is also a fallback command:
 
@@ -59,5 +61,6 @@ node --check plugin.test.js
 node --unhandled-rejections=strict plugin.test.js
 ```
 
-The checks cover clipboard event scoping, read-only versus edit mode, and
-listener cleanup when Canvas documents close or reopen.
+The checks cover clipboard event scoping across multiple Canvas views, native
+copy behavior for editable controls, read-only versus edit mode, and listener
+cleanup when Canvas documents close or reopen.
