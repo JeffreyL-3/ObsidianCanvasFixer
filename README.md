@@ -22,8 +22,17 @@ If an earlier version is already installed, replace its `main.js` and
 3. Press the normal copy shortcut (`Ctrl+C` on Windows/Linux or `Cmd+C` on
    macOS).
 
-The plugin puts Markdown in the plain-text clipboard format and the selected
-rendered content in the HTML clipboard format.
+Choose the copy format under **Settings -> Canvas Read-Only Copy -> Copy
+format**:
+
+- **Markdown (with formatting)** copies Markdown syntax such as `**bold**`.
+  This is the default and also provides rich HTML to applications that support
+  it.
+- **Rendered text (plain)** copies only the visible text, without syntax such as
+  `**`, `_`, or backticks and without rich formatting.
+- **Rendered text (rich formatting)** copies visible text without Markdown
+  syntax and embeds the rendered HTML so compatible applications retain bold,
+  italics, links, lists, and similar formatting.
 
 Copy actions outside the selected read-only Canvas retain Obsidian's normal
 clipboard behavior. Body-targeted copy events only use a selection from the
@@ -54,6 +63,6 @@ node --check plugin.test.js
 node --unhandled-rejections=strict plugin.test.js
 ```
 
-The checks cover clipboard event scoping across multiple Canvas views, native
-copy behavior for editable controls, read-only versus edit mode, and listener
-cleanup when Canvas documents close or reopen.
+The checks cover all copy formats, clipboard event scoping across multiple
+Canvas views, native copy behavior for editable controls, read-only versus edit
+mode, and listener cleanup when Canvas documents close or reopen.

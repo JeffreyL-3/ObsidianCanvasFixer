@@ -1,10 +1,23 @@
-const { Plugin, htmlToMarkdown } = require("obsidian");
+const {
+  Plugin,
+  PluginSettingTab,
+  Setting,
+  htmlToMarkdown,
+} = require("obsidian");
 
 const CANVAS_VIEW_TYPE = "canvas";
+const COPY_MODE_MARKDOWN = "markdown";
+const COPY_MODE_RENDERED_TEXT = "rendered-text";
+const COPY_MODE_RENDERED_RICH_TEXT = "rendered-rich-text";
+const DEFAULT_SETTINGS = {
+  copyMode: COPY_MODE_MARKDOWN,
+};
 
 module.exports = class CanvasReadonlyCopyPlugin extends Plugin {
-  onload() {
+  async onload() {
+    await this.loadSettings();
     this.attachedDocuments = new Map();
+    this.addSettingTab(new CanvasReadonlyCopySettingTab(this.app, this));
 
     const attach = () => this.attachToCanvasDocuments();
     this.registerEvent(this.app.workspace.on("layout-change", attach));
@@ -49,10 +62,34 @@ module.exports = class CanvasReadonlyCopyPlugin extends Plugin {
     if (!selection) return;
 
     // ClipboardEvent data must be written synchronously while the copy event is active.
-    event.clipboardData.setData("text/plain", selection.markdown);
-    event.clipboardData.setData("text/html", selection.html);
+    if (this.settings.copyMode === COPY_MODE_RENDERED_TEXT) {
+      event.clipboardData.setData("text/plain", selection.text);
+    } else if (this.settings.copyMode === COPY_MODE_RENDERED_RICH_TEXT) {
+      event.clipboardData.setData("text/plain", selection.text);
+      event.clipboardData.setData("text/html", selection.html);
+    } else {
+      event.clipboardData.setData("text/plain", selection.markdown);
+      event.clipboardData.setData("text/html", selection.html);
+    }
     event.preventDefault();
     event.stopImmediatePropagation();
+  }
+
+  async loadSettings() {
+    const savedSettings = await this.loadData();
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, savedSettings);
+
+    if (
+      this.settings.copyMode !== COPY_MODE_MARKDOWN &&
+      this.settings.copyMode !== COPY_MODE_RENDERED_TEXT &&
+      this.settings.copyMode !== COPY_MODE_RENDERED_RICH_TEXT
+    ) {
+      this.settings.copyMode = DEFAULT_SETTINGS.copyMode;
+    }
+  }
+
+  async saveSettings() {
+    await this.saveData(this.settings);
   }
 
   findReadonlyCanvasSelection(doc, expectedView = null, copyEvent = null) {
@@ -142,7 +179,7 @@ module.exports = class CanvasReadonlyCopyPlugin extends Plugin {
     const html = wrapper.innerHTML || this.escapeHtml(text);
     const converted = htmlToMarkdown(html);
     const markdown = converted.trim() ? converted : text;
-    return { html, markdown };
+    return { html, markdown, text };
   }
 
   getReadonlyCanvasViews() {
@@ -170,3 +207,35 @@ module.exports = class CanvasReadonlyCopyPlugin extends Plugin {
       .replaceAll("'", "&#039;");
   }
 };
+
+class CanvasReadonlyCopySettingTab extends PluginSettingTab {
+  constructor(app, plugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+  }
+
+  display() {
+    const { containerEl } = this;
+    containerEl.empty();
+
+    new Setting(containerEl)
+      .setName("Copy format")
+      .setDesc(
+        "Choose whether copy includes Markdown formatting or only rendered text.",
+      )
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption(COPY_MODE_MARKDOWN, "Markdown (with formatting)")
+          .addOption(COPY_MODE_RENDERED_TEXT, "Rendered text (plain)")
+          .addOption(
+            COPY_MODE_RENDERED_RICH_TEXT,
+            "Rendered text (rich formatting)",
+          )
+          .setValue(this.plugin.settings.copyMode)
+          .onChange(async (value) => {
+            this.plugin.settings.copyMode = value;
+            await this.plugin.saveSettings();
+          }),
+      );
+  }
+}
