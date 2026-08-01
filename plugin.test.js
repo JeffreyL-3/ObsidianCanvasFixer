@@ -45,7 +45,9 @@ const selection = {
 };
 
 const listeners = new Map();
+const body = { nodeType: 1 };
 const doc = {
+  body,
   defaultView: {
     getSelection: () => selection,
     navigator: { clipboard: { writeText: async () => {} } },
@@ -60,14 +62,16 @@ const doc = {
   removeEventListener: (name) => listeners.delete(name),
 };
 
+const canvasRoot = { contains: (node) => node === ancestor };
 const view = {
   getViewType: () => "canvas",
   containerEl: { ownerDocument: doc },
-  canvas: { readonly: true, canvasEl: { contains: (node) => node === ancestor } },
+  canvas: { readonly: true, canvasEl: canvasRoot },
 };
+const leaves = [{ view }];
 const workspace = {
   activeLeaf: { view },
-  getLeavesOfType: () => [{ view }],
+  getLeavesOfType: () => leaves,
   on: () => ({}),
   onLayoutReady: (callback) => callback(),
 };
@@ -82,6 +86,8 @@ const clipboard = new Map();
 let prevented = false;
 let stopped = false;
 plugin.handleCopyEvent(doc, {
+  target: body,
+  composedPath: () => [body, doc],
   clipboardData: { setData: (type, value) => clipboard.set(type, value) },
   preventDefault: () => (prevented = true),
   stopImmediatePropagation: () => (stopped = true),
@@ -92,10 +98,36 @@ assert.equal(clipboard.get("text/html"), "<strong>Hello</strong>");
 assert.equal(prevented, true);
 assert.equal(stopped, true);
 
+clipboard.clear();
+prevented = false;
+stopped = false;
+const outsideTarget = { nodeType: 1 };
+plugin.handleCopyEvent(doc, {
+  target: outsideTarget,
+  composedPath: () => [outsideTarget, doc],
+  clipboardData: { setData: (type, value) => clipboard.set(type, value) },
+  preventDefault: () => (prevented = true),
+  stopImmediatePropagation: () => (stopped = true),
+});
+
+assert.equal(clipboard.size, 0, "copy outside Canvas must ignore a stale Canvas selection");
+assert.equal(prevented, false, "copy outside Canvas must retain native behavior");
+assert.equal(stopped, false, "copy outside Canvas must reach other handlers");
+assert.equal(
+  plugin.eventOriginatesWithinCanvas(
+    { target: ancestor, composedPath: () => [ancestor, canvasRoot, body, doc] },
+    canvasRoot,
+    doc,
+  ),
+  true,
+  "copy events dispatched inside Canvas must be accepted",
+);
+
 view.canvas.readonly = false;
 clipboard.clear();
 prevented = false;
 plugin.handleCopyEvent(doc, {
+  target: ancestor,
   clipboardData: { setData: (type, value) => clipboard.set(type, value) },
   preventDefault: () => (prevented = true),
   stopImmediatePropagation: () => {},
@@ -104,6 +136,15 @@ plugin.handleCopyEvent(doc, {
 assert.equal(clipboard.size, 0, "edit mode must not be intercepted");
 assert.equal(prevented, false, "edit mode must retain native copy behavior");
 assert.equal(plugin.commands[0].checkCallback(true), false, "command must be hidden in edit mode");
+
+leaves.length = 0;
+plugin.attachToCanvasDocuments();
+assert.equal(listeners.size, 0, "listener must be removed when a document has no Canvas leaves");
+assert.equal(plugin.attachedDocuments.size, 0, "closed Canvas documents must not be retained");
+
+leaves.push({ view });
+plugin.attachToCanvasDocuments();
+assert.equal(listeners.get("copy").capture, true, "listener must be restored when Canvas reopens");
 
 plugin.onunload();
 assert.equal(listeners.size, 0, "copy listener must be removed on unload");

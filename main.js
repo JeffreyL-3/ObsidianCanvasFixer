@@ -32,20 +32,32 @@ module.exports = class CanvasReadonlyCopyPlugin extends Plugin {
   }
 
   attachToCanvasDocuments() {
+    const liveDocuments = new Set();
+
     for (const leaf of this.app.workspace.getLeavesOfType(CANVAS_VIEW_TYPE)) {
       const doc = leaf.view?.containerEl?.ownerDocument;
-      if (!doc || this.attachedDocuments.has(doc)) continue;
+      if (!doc) continue;
+
+      liveDocuments.add(doc);
+      if (this.attachedDocuments.has(doc)) continue;
 
       const handler = (event) => this.handleCopyEvent(doc, event);
       doc.addEventListener("copy", handler, true);
       this.attachedDocuments.set(doc, handler);
+    }
+
+    for (const [doc, handler] of this.attachedDocuments) {
+      if (liveDocuments.has(doc)) continue;
+
+      doc.removeEventListener("copy", handler, true);
+      this.attachedDocuments.delete(doc);
     }
   }
 
   handleCopyEvent(doc, event) {
     if (!event.clipboardData) return;
 
-    const selection = this.findReadonlyCanvasSelection(doc);
+    const selection = this.findReadonlyCanvasSelection(doc, null, event);
     if (!selection) return;
 
     // ClipboardEvent data must be written synchronously while the copy event is active.
@@ -55,7 +67,7 @@ module.exports = class CanvasReadonlyCopyPlugin extends Plugin {
     event.stopImmediatePropagation();
   }
 
-  findReadonlyCanvasSelection(doc, expectedView = null) {
+  findReadonlyCanvasSelection(doc, expectedView = null, copyEvent = null) {
     const selection = doc.defaultView?.getSelection();
     if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
       return null;
@@ -74,11 +86,29 @@ module.exports = class CanvasReadonlyCopyPlugin extends Plugin {
       if (!this.isReadonlyCanvasView(view)) return false;
       if (view.containerEl.ownerDocument !== doc) return false;
       const canvasRoot = view.canvas?.canvasEl ?? view.containerEl;
-      return canvasRoot.contains(ancestor);
+      if (!canvasRoot.contains(ancestor)) return false;
+      return !copyEvent || this.eventOriginatesWithinCanvas(copyEvent, canvasRoot, doc);
     });
 
     if (!canvasView) return null;
     return this.serializeSelection(doc, selection, range);
+  }
+
+  eventOriginatesWithinCanvas(event, canvasRoot, doc) {
+    const path = typeof event.composedPath === "function" ? event.composedPath() : [];
+    if (path.includes(canvasRoot)) return true;
+
+    const target = path[0] ?? event.target;
+    if (!target) return false;
+
+    // Non-editable selections may dispatch copy at the document body instead.
+    return (
+      target === canvasRoot ||
+      canvasRoot.contains(target) ||
+      target === doc ||
+      target === doc.body ||
+      target === doc.documentElement
+    );
   }
 
   serializeSelection(doc, selection, range) {

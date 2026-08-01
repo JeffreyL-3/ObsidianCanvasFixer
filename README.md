@@ -25,6 +25,9 @@ If an earlier version is already installed, replace its `main.js` and
 The plugin puts Markdown in the plain-text clipboard format and the selected
 rendered content in the HTML clipboard format.
 
+Copy actions outside the selected read-only Canvas retain Obsidian's normal
+clipboard behavior.
+
 There is also a fallback command:
 
 `Canvas Read-Only Copy: Copy selected text from read-only canvas`
@@ -35,6 +38,8 @@ copies the Markdown/plain-text form.
 ## Compatibility and limitations
 
 - The plugin deliberately does nothing in Canvas edit mode.
+- Canvas views in separate Obsidian windows are supported. Per-window copy
+  listeners are removed when their Canvas views close.
 - Cross-origin web-page cards are not supported because browser security blocks
   access to selections inside embedded external sites.
 - Obsidian does not expose Canvas read-only state through its public plugin API.
@@ -50,5 +55,9 @@ Run the dependency-free checks with:
 
 ```powershell
 node --check main.js
-node plugin.test.js
+node --check plugin.test.js
+node --unhandled-rejections=strict plugin.test.js
 ```
+
+The checks cover clipboard event scoping, read-only versus edit mode, and
+listener cleanup when Canvas documents close or reopen.
