@@ -5,6 +5,20 @@ from Markdown and text cards while a Canvas is in read-only mode.
 
 ## Installation
 
+### Automatic installation
+
+Install **Canvas Read-Only Copy** from Obsidian's Community Plugins browser:
+
+1. In Obsidian, go to **Settings -> Community plugins**.
+2. Select **Browse** and search for **Canvas Read-Only Copy**.
+3. Select **Install**, then **Enable**.
+
+Alternatively, open the plugin's [Obsidian Community Plugins
+page](https://community.obsidian.md/plugins/canvas-readonly-copy-fix), select **Add
+to Obsidian**, and approve the installation in Obsidian.
+
+### Manual installation
+
 1. Close Obsidian.
 2. Create this folder inside your vault:
    `<your-vault>/.obsidian/plugins/canvas-readonly-copy-fix/`
